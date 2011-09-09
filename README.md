@@ -2,8 +2,11 @@
 
 This plugin checks the remote server and local chef cookbook repository for differences.
 
+Works with:
+* cookbooks
+* databags
 
-### Samples
+### Cookbook samples
 
 	$ knife diff cookbooks
 	Local orphan cookbooks:
@@ -25,3 +28,38 @@ This plugin checks the remote server and local chef cookbook repository for diff
 
 	apps cookbook files out of sync:
 	metadata.json
+
+### Databag Samples
+
+	$ knife diff databags
+	Local orphan databags:
+
+	Remote orphan databags:
+	
+	$ knife diff databag items apps
+	apps local orphan databag items:
+
+	apps remote orphan databag items:
+	
+	$ knife diff databag items --all
+	apps local orphan databag items:
+
+	apps remote orphan databag items:
+
+	git local orphan databag items:
+
+	git remote orphan databag items:
+
+	$ knife diff databag --all
+	apps databag items out of sync:
+
+	jenkins databag items out of sync:
+	jobs
+
+	nagios databag items out of sync:
+	
+	$ knife diff databag jenkins
+	jenkins databag items out of sync:
+	jobs
+
+	
