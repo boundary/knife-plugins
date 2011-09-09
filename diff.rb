@@ -80,6 +80,89 @@ module KnifeDiff
     end
   end
   
+  class DiffDatabags < Chef::Knife
+    
+    deps do
+      require 'chef/data_bag'
+    end
+    
+    banner "knife diff databags"
+    
+    def run
+      path = "#{Chef::Config[:cookbook_path]}/../data_bags"
+      
+      local_dbags = KnifeDiff::get_sorted_local_databags(path)
+      
+      remote_dbags = Chef::DataBag.list.keys.sort
+      
+      ui.info("Local orphan databags:")
+      ui.info(local_dbags.sort - remote_dbags)
+      
+      ui.info("\nRemote orphan databags:")
+      ui.info(remote_dbags - local_dbags.sort)
+    end
+    
+  end
+  
+  class DiffDatabagItems < Chef::Knife
+    
+    deps do
+      require 'chef/data_bag'
+    end
+    
+    banner "knife diff databag items DATABAG [options]"
+    
+    option :all,
+      :short => "-a",
+      :long => "--all",
+      :description => "Compare all data bags (list provided by local repo), rather than just a single cookbook"
+    
+    def run
+      path = "#{Chef::Config[:cookbook_path]}/../data_bags"
+            
+      if config[:all]
+        local_dbags = KnifeDiff::get_sorted_local_databags(path)
+            
+        local_dbags.each do |databag|
+          KnifeDiff::compare_databag_item_lists(ui, path, databag)
+        end        
+      else
+        KnifeDiff::compare_databag_item_lists(ui, path, name_args.first)
+      end
+    end
+    
+  end
+  
+  class DiffDatabag < Chef::Knife
+    
+    deps do
+      require 'chef/data_bag'
+    end
+    
+    banner "knife diff databag DATABAG [options]"
+    
+    option :all,
+      :short => "-a",
+      :long => "--all",
+      :description => "Compare all data bags (list provided by local repo), rather than just a single cookbook"
+    
+    def run
+      path = "#{Chef::Config[:cookbook_path]}/../data_bags"
+      
+      if config[:all]
+        remote_dbags = Chef::DataBag.list.keys
+        
+        remote_dbags.each do |dbag|
+          KnifeDiff::compare_databag_items(ui, path, dbag)
+        end
+        
+      else
+        KnifeDiff::compare_databag_items(ui, path, name_args.first)
+      end
+    end
+    
+  end
+  
   # stolen from https://github.com/opscode/chef/blob/master/chef/lib/chef/knife/cookbook_upload.rb#L116  
   def self.cookbook_repo
     @cookbook_loader ||= begin
@@ -209,4 +292,79 @@ module KnifeDiff
     end
     
   end
+  
+  def self.get_sorted_local_databags(path)
+    local_dbags = Dir.entries(path)
+    local_dbags.delete(".")
+    local_dbags.delete("..")
+    local_dbags.delete("README.md")
+    local_dbags.delete("databags")
+    
+    local_dbags.sort
+  end
+  
+  def self.get_sorted_local_databag_items(path)
+    local_dbag_items = Dir.entries(path)
+    local_dbag_items.delete(".")
+    local_dbag_items.delete("..")
+    
+    clean_local_dbag_items = []
+    
+    local_dbag_items.each do |item|
+      if item.include?(".json")
+        clean_local_dbag_items << item.gsub(".json", "")
+      elsif item.include?(".rb")
+        clean_local_dbag_items << item.gsub(".rb", "")
+      end
+    end
+    
+    clean_local_dbag_items.sort
+  end
+  
+  def self.compare_databag_item_lists(ui, path, databag)
+    remote_dbag_items = Chef::DataBag.load(databag).keys.sort
+    local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
+          
+    ui.info("#{databag} local orphan databag items:")
+    ui.info(local_dbag_items.sort - remote_dbag_items)
+
+    ui.info("\n#{databag} remote orphan databag items:")
+    ui.info(remote_dbag_items - local_dbag_items.sort)
+    ui.info("")
+  end
+  
+  def self.compare_databag_items(ui, path, databag)
+    remote_dbag_items = Chef::DataBag.load(databag).keys.sort
+    local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
+    
+    remote_checksums = {}
+    local_checksums = {}
+    
+    remote_dbag_items.each do |item|
+      remote_checksums.store(Digest::MD5.hexdigest(Chef::DataBagItem.load(databag, item).raw_data.to_json), item)
+    end
+    
+    local_dbag_items.each do |item|
+      file = "#{path}/#{databag}/#{item}.json"
+      data = JSON.parse(File.read(file)).to_json # this is gross but works
+      local_checksums.store(Digest::MD5.hexdigest(data), item)
+    end
+    
+    checksum_diff_list = remote_checksums.keys.sort - local_checksums.keys.sort
+
+    list = []
+
+    checksum_diff_list.each do |checksum|
+      if remote_checksums[checksum].nil?
+        list << local_checksums[checksum]
+      else
+        list << remote_checksums[checksum]
+      end
+    end
+  
+    ui.info("#{databag} databag items out of sync:")
+    ui.info(list)
+    ui.info("")
+  end
+  
 end
