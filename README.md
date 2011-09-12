@@ -62,4 +62,22 @@ Works with:
 	jenkins databag items out of sync:
 	jobs
 
+### Find Samples
+
+	$ knife find local erb 
+
+	apache2-0.99.3:
+	* templates/default/security.erb
+	* templates/default/mods/negotiation.conf.erb
+	* templates/default/mod_auth_openid.rb.erb
+
+	$ knife find remote sv
+
+	apache2-0.99.3:
+	* recipes/mod_dav_svn.rb
+
+	apps-0.1.0:
+	* templates/default/sv-app-log-run.erb
+	* templates/default/sv-app-run.erb
+
 	
