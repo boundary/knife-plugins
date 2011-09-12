@@ -163,6 +163,12 @@ module KnifeDiff
     
   end
   
+  #
+  # internal methods
+  #
+  
+  private
+  
   # stolen from https://github.com/opscode/chef/blob/master/chef/lib/chef/knife/cookbook_upload.rb#L116  
   def self.cookbook_repo
     @cookbook_loader ||= begin
@@ -204,56 +210,51 @@ module KnifeDiff
     files = {}
     
     manifest.attribute_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.definition_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
 
     manifest.file_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.library_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.metadata_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.provider_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.recipe_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.resource_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.root_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      store_file_checksum(files, file)
     end
     
     manifest.template_filenames.each do |file|
-      checksum = Digest::MD5.hexdigest(File.read(file))
-      files.store(checksum, file)
+      md5 = get_local_file_md5(file)
+      store_file_checksum(files, file)
     end
     
     files
+  end
+  
+  def self.store_file_checksum(hash, file)
+    hash.store(checksum, Digest::MD5.hexdigest(File.read(file)))
   end
   
   def self.cookbook_file_diff(remote_cookbook, checksums)
@@ -321,8 +322,12 @@ module KnifeDiff
     clean_local_dbag_items.sort
   end
   
+  def self.get_sorted_remote_databag_items(databag)
+    Chef::DataBag.load(databag).keys.sort
+  end
+  
   def self.compare_databag_item_lists(ui, path, databag)
-    remote_dbag_items = Chef::DataBag.load(databag).keys.sort
+    remote_dbag_items = KnifeDiff::get_sorted_remote_databag_items(databag)
     local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
           
     ui.info("#{databag} local orphan databag items:")
@@ -334,9 +339,9 @@ module KnifeDiff
   end
   
   def self.compare_databag_items(ui, path, databag)
-    remote_dbag_items = Chef::DataBag.load(databag).keys.sort
+    remote_dbag_items = KnifeDiff::get_sorted_remote_databag_items(databag)
     local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
-    
+
     remote_checksums = {}
     local_checksums = {}
     
@@ -346,8 +351,8 @@ module KnifeDiff
     
     local_dbag_items.each do |item|
       file = "#{path}/#{databag}/#{item}.json"
-      data = JSON.parse(File.read(file)).to_json # this is gross but works
-      local_checksums.store(Digest::MD5.hexdigest(data), item)
+      md5 = get_local_file_md5(file)
+      local_checksums.store(md5, item)
     end
     
     checksum_diff_list = remote_checksums.keys.sort - local_checksums.keys.sort
@@ -365,6 +370,15 @@ module KnifeDiff
     ui.info("#{databag} databag items out of sync:")
     ui.info(list)
     ui.info("")
+  end
+  
+  def self.get_local_file_md5(path)
+    Digest::MD5.hexdigest(File.read(path))
+  end
+  
+  def self.get_local_json_file_md5(path)
+    data = JSON.parse(File.read(path)).to_json # this is gross but works
+    Digest::MD5.hexdigest(data)
   end
   
 end
