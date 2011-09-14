@@ -141,7 +141,7 @@ module BoundaryKnifePlugins
 
     def compare_databag_item_lists(ui, path, databag)
       remote_dbag_items = get_sorted_remote_databag_items(databag)
-      local_dbag_items =  get_sorted_local_databag_items("#{path}/#{databag}")
+      local_dbag_items = get_sorted_local_databag_items("#{path}/#{databag}")
 
       ui.info("#{databag} local orphan databag items:")
       ui.info(local_dbag_items.sort - remote_dbag_items)
