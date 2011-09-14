@@ -127,13 +127,13 @@ module BoundaryKnifePlugins
     end
 
     def cookbook_compare(ui, rest, cookbook)
-      remote_cookbook = KnifeDiff::get_cookbook(rest, cookbook)
+      remote_cookbook = get_cookbook(rest, cookbook)
 
-      local_cookbook_manifest = KnifeDiff::cookbook_repo.cookbooks_by_name[cookbook]
+      local_cookbook_manifest = cookbook_repo.cookbooks_by_name[cookbook]
 
-      cookbook_checksums = KnifeDiff::generate_local_checksums(local_cookbook_manifest)
+      cookbook_checksums = generate_local_checksums(local_cookbook_manifest)
 
-      list = KnifeDiff::cookbook_file_diff(remote_cookbook, cookbook_checksums)
+      list = cookbook_file_diff(remote_cookbook, cookbook_checksums)
 
       if list.length > 0
         ui.info("#{cookbook} cookbook files out of sync:")
@@ -176,8 +176,8 @@ module BoundaryKnifePlugins
     end
 
     def compare_databag_item_lists(ui, path, databag)
-      remote_dbag_items = KnifeDiff::get_sorted_remote_databag_items(databag)
-      local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
+      remote_dbag_items = get_sorted_remote_databag_items(databag)
+      local_dbag_items = get_sorted_local_databag_items("#{path}/#{databag}")
 
       ui.info("#{databag} local orphan databag items:")
       ui.info(local_dbag_items.sort - remote_dbag_items)
@@ -188,8 +188,8 @@ module BoundaryKnifePlugins
     end
 
     def compare_databag_items(ui, path, databag)
-      remote_dbag_items = KnifeDiff::get_sorted_remote_databag_items(databag)
-      local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
+      remote_dbag_items = get_sorted_remote_databag_items(databag)
+      local_dbag_items = get_sorted_local_databag_items("#{path}/#{databag}")
 
       remote_checksums = {}
       local_checksums = {}
