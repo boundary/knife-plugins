@@ -57,61 +57,21 @@ module BoundaryKnifePlugins
 
     def generate_local_checksums(manifest)
       files = {}
-
-      manifest.attribute_filenames.each do |file|
-        store_file_checksum(files, file)
+      %w/attribute definition file library metadata provider recipe resource root template/.each do |resource|
+        eval("manifest.#{resource}_filenames").each do |file|
+          files.store(Digest::MD5.hexdigest(File.read(file)), file)
+        end
       end
-
-      manifest.definition_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.file_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.library_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.metadata_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.provider_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.recipe_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.resource_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.root_filenames.each do |file|
-        store_file_checksum(files, file)
-      end
-
-      manifest.template_filenames.each do |file|
-        md5 = get_local_file_md5(file)
-        store_file_checksum(files, file)
-      end
-
       files
     end
 
-    def store_file_checksum(hash, file)
-      hash.store(checksum, Digest::MD5.hexdigest(File.read(file)))
-    end
-
     def cookbook_file_diff(remote_cookbook, checksums)
-      checksum_diff_list = remote_cookbook.checksums.keys.sort - checksums.keys.sort
-
+      remote_checksum_diff = remote_cookbook.checksums.keys.sort - checksums.keys.sort
+      local_checksum_diff = checksums.keys.sort -  remote_cookbook.checksums.keys.sort 
+   
       list = []
 
-      checksum_diff_list.each do |checksum|
+      remote_checksum_diff.each do |checksum|
         if checksums[checksum].nil?
           remote_cookbook.manifest_records_by_path.each do |path, value|
             if value["checksum"] == checksum
@@ -123,17 +83,21 @@ module BoundaryKnifePlugins
         end
       end
 
+      local_checksum_diff.each do |checksum|
+        list << "#{checksums[checksum]} - Local Only"
+      end if remote_checksum_diff.empty?
+
       list
     end
 
     def cookbook_compare(ui, rest, cookbook)
-      remote_cookbook = KnifeDiff::get_cookbook(rest, cookbook)
+      remote_cookbook = get_cookbook(rest, cookbook)
 
-      local_cookbook_manifest = KnifeDiff::cookbook_repo.cookbooks_by_name[cookbook]
+      local_cookbook_manifest = cookbook_repo.cookbooks_by_name[cookbook]
 
-      cookbook_checksums = KnifeDiff::generate_local_checksums(local_cookbook_manifest)
+      cookbook_checksums = generate_local_checksums(local_cookbook_manifest)
 
-      list = KnifeDiff::cookbook_file_diff(remote_cookbook, cookbook_checksums)
+      list = cookbook_file_diff(remote_cookbook, cookbook_checksums)
 
       if list.length > 0
         ui.info("#{cookbook} cookbook files out of sync:")
@@ -176,8 +140,8 @@ module BoundaryKnifePlugins
     end
 
     def compare_databag_item_lists(ui, path, databag)
-      remote_dbag_items = KnifeDiff::get_sorted_remote_databag_items(databag)
-      local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
+      remote_dbag_items = get_sorted_remote_databag_items(databag)
+      local_dbag_items =  get_sorted_local_databag_items("#{path}/#{databag}")
 
       ui.info("#{databag} local orphan databag items:")
       ui.info(local_dbag_items.sort - remote_dbag_items)
@@ -188,8 +152,8 @@ module BoundaryKnifePlugins
     end
 
     def compare_databag_items(ui, path, databag)
-      remote_dbag_items = KnifeDiff::get_sorted_remote_databag_items(databag)
-      local_dbag_items = KnifeDiff::get_sorted_local_databag_items("#{path}/#{databag}")
+      remote_dbag_items = get_sorted_remote_databag_items(databag)
+      local_dbag_items = get_sorted_local_databag_items("#{path}/#{databag}")
 
       remote_checksums = {}
       local_checksums = {}
