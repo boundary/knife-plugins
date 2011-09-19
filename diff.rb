@@ -170,5 +170,73 @@ module BoundaryKnifePlugins
     
   end
 
+  class DiffRole < Chef::Knife
+    
+    deps do 
+      require 'chef/role'
+      require 'chef/knife/core/object_loader'
+      require 'chef/json_compat'
+    end
+    
+    option :all,
+      :short => "-a",
+      :long => "--all",
+      :description => "Compare all roles, Uses remote list to determine set. Only supports local .json roles for now"
+
+    banner "knife diff role ROLE"
+
+    def loader
+      @loader ||= Chef::Knife::Core::ObjectLoader.new(Chef::Role, ui)
+    end
+
+    def run
+      @path = "#{Chef::Config[:cookbook_path].first}/../roles"
+      @local_roles  = local_roles
+      @remote_roles = format_list_for_display(Chef::Role.list)
+  
+      if config[:all]
+        @remote_roles.each do |role|
+          compare_role(role)
+        end
+      else 
+        compare_role(name_args.first)
+      end
+    end
+    
+
+    # md5 and cmp remote to local
+    def compare_role(role)
+      if @local_roles.has_key?(role)
+        remote_role = Chef::Role.load(role)
+        remote_sum = digest(Chef::Role.load(role).to_json)
+        local_sum  = digest(loader.load_from("roles", @local_roles[role]).to_json)
+        ui.info "#{role} is out of sync" if local_sum != remote_sum
+      else
+        ui.info "#{role} is on server, but not found in local list"
+      end        
+    end
+   
+    # return an array of rolefile names
+    # supports 2 levels of subdirs
+    def local_files
+      files = []
+      %w/json rb/.each do |ext|
+        files << Dir["#{@path}/*.#{ext}", "#{@path}/*/*.#{ext}", "#{@path}/*/*/*.#{ext}"] 
+      end
+      files.flatten.sort.uniq
+    end  
+
+    # hash of local role names as keys with path as values
+    def local_roles
+      file_map = {}
+      local_files.map {|file| file_map[ File.basename(file, File.extname(file)) ] = file }
+      file_map
+    end
+ 
+    # generate an md5sum 
+    def digest(data)
+      Digest::MD5.hexdigest(data)
+    end 
+  end
   
 end
